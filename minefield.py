@@ -94,7 +94,7 @@ class MineField:
                 if not self.Cell_array[i][j][0] == -1:
                     if self.Cell_array[i][j][1] == 0:
                         return False
-            return True
+        return True
 
 
 # ----------T-E-S-T----------
