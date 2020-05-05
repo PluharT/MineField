@@ -87,6 +87,15 @@ class MineField:
                         temp_n_mines += 1 if self.Cell_array[i + k[0]][j + k[1]][0] == -1 else 0
                 self.Cell_array[i][j][0] = temp_n_mines
 
+    def game_victory_check(self):
+        """returns True if all non-mine cells are uncovered, otherwise returns False"""
+        for i in range(self.Field_rows):
+            for j in range(self.Field_columns):
+                if not self.Cell_array[i][j][0] == -1:
+                    if self.Cell_array[i][j][1] == 0:
+                        return False
+            return True
+
 
 # ----------T-E-S-T----------
 lol = MineField()
@@ -95,3 +104,4 @@ lol.game_generate_cell_array()
 lol.game_generate_mines()
 lol.game_generate_neighbours()
 print(lol.Cell_array)
+print(lol.game_victory_check())
