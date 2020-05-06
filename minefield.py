@@ -1,6 +1,14 @@
 from random import randrange
 
 
+class CellClear(Exception):
+    pass
+
+
+class CellFlagged(Exception):
+    pass
+
+
 class MineField:
     current_cell = [0, 0]
     Cell_array = []
@@ -17,9 +25,20 @@ class MineField:
         [1, 0],
         [1, 1]
     )
+    Game_state = 0
+    """
+    Game_state: tells the runtime what state is the game in:
+    0: off
+    1: running
+    2: victory
+    3: fail
+    """
 
     def set_attributes(self, rows=0, columns=0, mines=0):
-        """Sets one MineFields attributes, raises ValueError if the parameters are negative"""
+        """
+        Sets one MineFields attributes,
+        :raises ValueError if the parameters are negative, or there are more mines than cells
+        """
         if (rows or columns or mines) < 0:
             raise ValueError
         if mines > (rows * columns):
@@ -88,20 +107,66 @@ class MineField:
                 self.Cell_array[i][j][0] = temp_n_mines
 
     def game_victory_check(self):
-        """returns True if all non-mine cells are uncovered, otherwise returns False"""
+        """sets self.Game_state to 2 (victory) if all non-mine cells are uncovered"""
         for i in range(self.Field_rows):
             for j in range(self.Field_columns):
                 if not self.Cell_array[i][j][0] == -1:
                     if self.Cell_array[i][j][1] == 0:
-                        return False
-        return True
+                        return
+        self.Game_state = 2
+
+    def game_set_cell_state(self, cell, new_state):
+        """
+        Sets a given cells state, according to the argument, new_state
+        Sets self.Game_state to 3 (fail) if a mine is uncovered
+        :raises ValueError if new_state is not a valid action
+        :raises CellFlagged when trying to uncover a flagged cell
+        :raises CellClear when trying to uncover or flag an already clear cell
+        """
+        current_cell = self.Cell_array[cell[0]][cell[1]]
+        check = self.Game_neighbour_check_tuple
+        valid_actions = ["U", "F", "?"]
+        if new_state not in valid_actions:
+            raise ValueError
+
+        if new_state == "U":
+            if current_cell[0] == -1:
+                self.Game_state = 3
+                return
+            if current_cell[1] == (2 or 3):
+                raise CellFlagged
+            if current_cell[1] == 1:
+                raise CellClear
+            if current_cell[0] == 0:
+                for i in check:
+                    if 0 <= cell[0] + i[0] < self.Field_rows and 0 <= cell[1] + i[1] < self.Field_columns:
+                        try:
+                            self.game_set_cell_state([cell[0] + i[0], cell[1] + i[1]], "U")
+                        except (CellClear, CellFlagged):
+                            pass
+            self.Cell_array[cell[0]][cell[1]][1] = 1
+            return
+        if current_cell[1] == 1:
+            raise CellClear
+        if new_state == "F":
+            if current_cell[1] in (0, 3):
+                self.Cell_array[cell[0]][cell[1]][1] = 2
+                return
+            if current_cell[1] == 2:
+                self.Cell_array[cell[0]][cell[1]][1] = 0
+
+        if new_state == "?":
+            if current_cell[1] in (0, 2):
+                self.Cell_array[cell[0]][cell[1]][1] = 3
+                return
+            if current_cell[1] == 3:
+                self.Cell_array[cell[0]][cell[1]][1] = 0
 
 
 # ----------T-E-S-T----------
-lol = MineField()
-lol.set_attributes(1, 1)
-lol.game_generate_cell_array()
-lol.game_generate_mines()
-lol.game_generate_neighbours()
-print(lol.Cell_array)
-print(lol.game_victory_check())
+spam = MineField()
+spam.set_attributes(2, 2)
+spam.game_generate_cell_array()
+spam.game_generate_mines([0, 0])
+spam.game_generate_neighbours()
+print(spam.Cell_array)
