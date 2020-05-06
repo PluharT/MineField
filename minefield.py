@@ -137,14 +137,14 @@ class MineField:
                 raise CellFlagged
             if current_cell[1] == 1:
                 raise CellClear
+            self.Cell_array[cell[0]][cell[1]][1] = 1
             if current_cell[0] == 0:
                 for i in check:
                     if 0 <= cell[0] + i[0] < self.Field_rows and 0 <= cell[1] + i[1] < self.Field_columns:
                         try:
                             self.game_set_cell_state([cell[0] + i[0], cell[1] + i[1]], "U")
                         except (CellClear, CellFlagged):
-                            pass
-            self.Cell_array[cell[0]][cell[1]][1] = 1
+                            continue
             return
         if current_cell[1] == 1:
             raise CellClear
@@ -162,11 +162,66 @@ class MineField:
             if current_cell[1] == 3:
                 self.Cell_array[cell[0]][cell[1]][1] = 0
 
+    def game_uncover_all_mines(self):
+        """Used in a case of loss, to show all the mines, the wrong, and the correct flags"""
+        for i in range(self.Field_rows):
+            for j in range(self.Field_columns):
+                current_cell = self.Cell_array[i][j]
+                if current_cell[0] == -1 and current_cell[1] == 0:
+                    self.Cell_array[i][j][1] = 1
+                elif current_cell[0] == -1 and current_cell[1] == 2:
+                    self.Cell_array[i][j][1] = 4
+                elif (not current_cell[0] == -1) and current_cell[1] == 2:
+                    self.Cell_array[i][j][1] = 5
+
+    def runtime_cli(self):
+        """
+        Starts the game, using the command line interface
+        """
+        if not self.Game_state == 0:
+            return
+
+    def runtime_cli_draw_field(self):
+        """Prints out the current state of the minefield"""
+        temp_draw_field = ""
+        temp_top_row = "   "
+        cells = self.Cell_array
+        for i in range(1, (self.Field_columns + 1)):
+            temp_top_row += str(i) + " "
+        temp_top_row += "\n"
+        temp_draw_field += temp_top_row
+        for i in range(0, self.Field_rows):
+            temp_column = " " + str(i + 1) + " "
+            for j in range(0, self.Field_columns):
+                if cells[i][j][1] == 0:
+                    temp_column += "X "
+                elif cells[i][j][1] == 2:
+                    temp_column += "F "
+                elif cells[i][j][1] == 3:
+                    temp_column += "? "
+                elif cells[i][j][1] == 4:
+                    temp_column += "C "
+                elif cells[i][j][1] == 5:
+                    temp_column += "W "
+                elif cells[i][j][0] == -1:
+                    temp_column += "M "
+                elif cells[i][j][0] == 0:
+                    temp_column += "  "
+                else:
+                    temp_column += str(cells[i][j][0]) + " "
+            temp_column += "\n"
+            temp_draw_field += temp_column
+        print(temp_draw_field)
+
 
 # ----------T-E-S-T----------
 spam = MineField()
-spam.set_attributes(2, 2)
+spam.set_attributes(4, 4)
 spam.game_generate_cell_array()
 spam.game_generate_mines([0, 0])
 spam.game_generate_neighbours()
-print(spam.Cell_array)
+spam.game_set_cell_state([0, 0], "F")
+spam.game_set_cell_state([1, 2], "F")
+spam.game_set_cell_state([3, 3], "U")
+spam.game_uncover_all_mines()
+spam.runtime_cli_draw_field()
