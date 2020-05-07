@@ -1,3 +1,4 @@
+import sys
 from random import randrange
 
 
@@ -33,6 +34,35 @@ class MineField:
     2: victory
     3: fail
     """
+    help_text = "Welcome to MineField!\n" \
+                "Your goal is to uncover all cells, which are not mines!\n" \
+                "The Field looks like this:\n\n" \
+                "   1 2 3 4 5\n" \
+                " 1         1\n" \
+                " 2       2 F\n" \
+                " 3     1 F X\n" \
+                " 4     1 X X\n" \
+                " 5     X X X\n" \
+                "\n" \
+                "Syntax of the input: row column action\n" \
+                "For example: 3 4 U\n" \
+                "Valid actions:\n" \
+                "U: Uncover a cell\n" \
+                "F: Flag a cell, or remove a flag from a cell\n" \
+                "?: ?Flag a cell or remove a ?flag from a cell"
+    about_text = "Thank you for playing my game!\n" \
+                 "Programed by: Pluhár Tamás, 2020\n"
+    greet_text = ("\n"
+                  " ___ ___  ____  ____     ___  _____  ____    ___  _      ___   \n"
+                  "|   |   ||    ||    \   /  _]|     ||    |  /  _]| |    |   \  \n"
+                  "| _   _ | |  | |  _  | /  [_ |   __| |  |  /  [_ | |    |    \ \n"
+                  "|  \_/  | |  | |  |  ||    _]|  |_   |  | |    _]| |___ |  D  |\n"
+                  "|   |   | |  | |  |  ||   [_ |   _]  |  | |   [_ |     ||     |\n"
+                  "|   |   | |  | |  |  ||     ||  |    |  | |     ||     ||     |\n"
+                  "|___|___||____||__|__||_____||__|   |____||_____||_____||_____|\n"
+                  "                                                               \n")
+    angry_text = "You do you"
+    cli_valid_actions = ("U", "F", "?")
 
     def set_attributes(self, rows=0, columns=0, mines=0):
         """
@@ -178,8 +208,27 @@ class MineField:
         """
         Starts the game, using the command line interface
         """
-        if not self.Game_state == 0:
-            return
+        try:
+            if not self.Game_state == 0:
+                return
+            self.Game_state = 1
+            actions_dict = {
+                "PLAY": self.cli_play,
+                "HELP": self.cli_help,
+                "ABOUT": self.cli_about,
+                "NO": self.cli_no,
+                "NEM": self.cli_no
+            }
+            print(self.greet_text)
+            print('Type "Play" to play!')
+            while not 0 == self.Game_state:
+                user_in = input()
+                if not user_in.strip().upper() in actions_dict:
+                    print("Invalid action!")
+                    continue
+                actions_dict[user_in.strip().upper()]()
+        except (KeyboardInterrupt, EOFError):
+            pass
 
     def runtime_cli_draw_field(self):
         """Prints out the current state of the minefield"""
@@ -213,9 +262,102 @@ class MineField:
             temp_draw_field += temp_column
         print(temp_draw_field)
 
+    def cli_help(self):
+        """Prints out the help text"""
+        print(self.help_text)
+
+    def cli_about(self):
+        """Prints out the about text"""
+        print(self.about_text)
+
+    def cli_no(self):
+        """Exist the program... lol"""
+        print(self.angry_text)
+        sys.exit()
+
+    def cli_play(self):
+        invalid = "Invalid value!"
+        while True:
+            rows = int(input("Please set the number of rows (min 1, max 20)\n").strip())
+            if 1 <= rows <= 20:
+                break
+            else:
+                print(invalid)
+        while True:
+            columns = int(input("Please set the number of columns (min 1, max 20)\n").strip())
+            if 1 <= columns <= 20:
+                break
+            else:
+                print(invalid)
+        while True:
+            mines = int(input("Please set the number of mines (min 1, max " + str(rows * columns) + ")\n").strip())
+            if 1 <= mines <= (rows * columns):
+                break
+            else:
+                print(invalid)
+        self.set_attributes(rows, columns, mines)
+        self.game_generate_cell_array()
+        self.game_generate_mines()
+        self.game_generate_neighbours()
+        while True:
+            self.game_victory_check()
+            if self.Game_state == 3:
+                self.game_uncover_all_mines()
+            self.runtime_cli_draw_field()
+            if self.Game_state == 2:
+                print("Congratulations, You've won!")
+                self.Game_state = 0
+                break
+            if self.Game_state == 3:
+                print("You've lost!")
+                self.Game_state = 0
+                break
+            while True:
+                temp_next_action = input("Next cell, and action: \n").strip()
+                temp_row = ""
+                temp_column = ""
+                temp_action = ""
+                progress = 0
+                if temp_action.strip().upper() == "HELP":
+                    self.cli_help()
+                    spam = input("Press enter to continue")
+                    break
+                for i in temp_next_action:
+                    if progress == 0 and i == " ":
+                        progress = 1
+                        continue
+                    if progress == 0:
+                        temp_row += i
+                    if progress == 1:
+                        temp_column += i
+                    if progress == 1 and i == " ":
+                        progress = 2
+                        continue
+                    if progress == 2:
+                        temp_action += i
+
+                try:
+                    temp_row = int(temp_row) - 1
+                except:
+                    print("Invalid row!")
+                    continue
+
+                try:
+                    temp_column = int(temp_column) - 1
+                except:
+                    print("Invalid column!")
+                    continue
+
+                if temp_action not in self.cli_valid_actions:
+                    print("Invalid action!")
+                    continue
+                break
+            self.game_set_cell_state([temp_row, temp_column], temp_action)
+
 
 # ----------T-E-S-T----------
 spam = MineField()
+"""
 spam.set_attributes(4, 4)
 spam.game_generate_cell_array()
 spam.game_generate_mines([0, 0])
@@ -225,3 +367,5 @@ spam.game_set_cell_state([1, 2], "F")
 spam.game_set_cell_state([3, 3], "U")
 spam.game_uncover_all_mines()
 spam.runtime_cli_draw_field()
+"""
+spam.runtime_cli()
