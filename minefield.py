@@ -233,14 +233,34 @@ class MineField:
     def runtime_cli_draw_field(self):
         """Prints out the current state of the minefield"""
         temp_draw_field = ""
-        temp_top_row = "   "
+        temp_row_beginning = "  " if self.Field_rows < 9 else "    "
+        temp_top_row = temp_row_beginning
         cells = self.Cell_array
-        for i in range(1, (self.Field_columns + 1)):
-            temp_top_row += str(i) + " "
+        if self.Field_columns < 9:
+            for i in range(1, self.Field_columns + 1):
+                temp_top_row += str(i) + " "
+        else:
+            for i in range(1, self.Field_columns + 1):
+                if i < 10:
+                    temp_top_row += "  "
+                else:
+                    temp_top_row += str(i // 10) + " "
+            temp_top_row += "\n" + temp_row_beginning
+            counter = 0
+            for i in range(1, self.Field_columns + 1):
+                if i % 10 == 0:
+                    counter += 10
+                temp_top_row += str(i - counter) + " "
         temp_top_row += "\n"
         temp_draw_field += temp_top_row
         for i in range(0, self.Field_rows):
-            temp_column = " " + str(i + 1) + " "
+            if self.Field_rows < 9:
+                temp_column = " " + str(i + 1) + " "
+            else:
+                if i < 9:
+                    temp_column = "  " + str(i + 1) + " "
+                else:
+                    temp_column = " " + str(i + 1) + " "
             for j in range(0, self.Field_columns):
                 if cells[i][j][1] == 0:
                     temp_column += "X "
@@ -313,7 +333,7 @@ class MineField:
                 self.Game_state = 0
                 break
             while True:
-                temp_next_action = input("Next cell, and action: \n").strip()
+                temp_next_action = input("Next cell, and action: \n").strip().upper()
                 temp_row = ""
                 temp_column = ""
                 temp_action = ""
@@ -327,9 +347,9 @@ class MineField:
                         progress = 1
                         continue
                     if progress == 0:
-                        temp_row += i
-                    if progress == 1:
                         temp_column += i
+                    if progress == 1:
+                        temp_row += i
                     if progress == 1 and i == " ":
                         progress = 2
                         continue
@@ -352,7 +372,12 @@ class MineField:
                     print("Invalid action!")
                     continue
                 break
-            self.game_set_cell_state([temp_row, temp_column], temp_action)
+            try:
+                self.game_set_cell_state([temp_row, temp_column], temp_action)
+            except CellClear:
+                print("That cell is already clear!")
+            except CellFlagged:
+                print("That cell is already flagged!")
 
 
 # ----------T-E-S-T----------
