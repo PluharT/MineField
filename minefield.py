@@ -379,6 +379,8 @@ class MineField:
             except CellFlagged:
                 print("That cell is already flagged!")
 
+    def runtime_gui(self):
+        pass
 
 # ----------T-E-S-T----------
 spam = MineField()
