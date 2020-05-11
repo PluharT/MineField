@@ -1,18 +1,9 @@
+import sys
+from random import randrange
 import tkinter as tk
-from random import randint
-from enum import Enum
-from colorama import Fore
-from colorama import Style
 
 
-class States(Enum):
-    GAME_OFF = 1
-    GAME_RUNNING = 2
-    GAME_FAIL = 3
-    GAME_VICTORY = 4
-
-
-class CellAlreadyClear(Exception):
+class CellClear(Exception):
     pass
 
 
@@ -20,403 +11,405 @@ class CellFlagged(Exception):
     pass
 
 
-def add(x, y):  # adds two numbers together
-    return x + y
-
-
 class MineField:
-    game_state = States.GAME_OFF
-    Mine_array = []  # stores integers which are representing the mines
-    Mine_count = 13  # how many armed mines should be armed from the field
-    Field_rows = 5  # how many rows the field has
-    Field_columns = 5  # how many columns the field has
-    Mine_n_check_dict = {
-        "NW": [[0, 1], [1, 1], [1, 0]],
-        "NE": [[0, -1], [1, -1], [1, 0]],
-        "SW": [[-1, 0], [-1, 1], [0, 1]],
-        "SE": [[0, -1], [-1, -1], [-1, 0]],
-        "N": [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1]],
-        "S": [[0, -1], [-1, -1], [-1, 0], [-1, 1], [0, 1]],
-        "W": [[-1, 0], [-1, 1], [0, 1], [1, 1], [1, 0]],
-        "E": [[-1, 0], [-1, -1], [0, -1], [1, -1], [1, 0]],
-        "M": [[-1, -1], [-1, 0], [-1, 1], [0, -1], [0, 1], [1, -1], [1, 0], [1, 1]]
-    }  # used in neighbour calculation
-    Mine_n_corner_dict = {
-        "NW": [0, 0],
-        "NE": [0, -1],
-        "SW": [-1, 0],
-        "SE": [-1, -1]
-    }  # used in neighbour calculation for the corners
-    Mine_n_horizontal_dict = {
-        "N": 0,
-        "S": -1
-    }  # used in neighbour calculation for the horizontal lines
-    Mine_n_vertical_dict = {
-        "W": 0,
-        "E": -1
-    }  # used in neighbour calculation for the vertical lines
-    Mine_empty_dict = {
-        "corner":
-            {(0, 0): "NW",
-             (0, Field_columns - 1): "NE",
-             (Field_rows - 1, 0): "SW",
-             (Field_rows - 1, Field_columns - 1): "SE", },
-        "vertical":
-            {0: "N",
-             Field_rows - 1: "S"},
-        "horizontal":
-            {0: "W",
-             Field_columns - 1: "E"}
-    }
-    player_prefix = f"{Fore.GREEN}\nplayer> {Style.RESET_ALL}"
-    sys_prefix = f"{Fore.YELLOW}minefield>{Style.RESET_ALL}"
-
-    def set_attributes(self, rows=5, columns=5, mine_count=13, ):  # sets the attributes of an instance of this class
-        self.Field_rows = rows
-        self.Field_columns = columns
-        self.Mine_count = mine_count
-
-    def generate_array(self):
-        """fills up the self.Mine_array variable with lists, who's members are:
-        [0]: how many neighbouring cells are mines, or said cell is a mine or not
-            -1: mine
-            0-9: how many neighbouring cells are mines, if the cell itself is not a mine
-        [1]: the visual state of the cell:
-            -1: neighbours uncalculated
-            0: covered
-            1: uncovered
-            2: flagged
-            3: ?flagged"""
-        for i in range(0, self.Field_rows):
-            temp_mine_column = []
-            for j in range(0, self.Field_columns):
-                temp_mine_column.append([0, -1])
-            self.Mine_array.append(temp_mine_column)
-
-    def generate_mines(self):
-        """makes random mines from self.Mine_array armed (via setting its [0] to -2)
-        according to the self.Mine_count variable, raises ValueError if there are more armed mines than actual cells"""
-        if self.Mine_count > (self.Field_rows * self.Field_columns):
-            raise ValueError
-        if not self.Mine_array:
-            self.generate_array()
-        else:
-            i = 0
-            while True:
-                if i == self.Mine_count:
-                    break
-                rand_row = randint(0, add(self.Field_rows, -1))
-                rand_column = randint(0, add(self.Field_columns, -1))
-                if not self.Mine_array[rand_row][rand_column][0] == -2:
-                    self.Mine_array[rand_row][rand_column][0] = -1
-                    i += 1
-
-    def generate_neighbours(self):
-        """calculates, out of given mine's neighbours, how many of them is armed,
-        and stores it in it's armed variable"""
-        if not self.Mine_array:
-            self.generate_array()
-        else:
-            for i in self.Mine_n_corner_dict:
-                temp_n_armed = 0
-                if not self.Mine_array[self.Mine_n_corner_dict[i][0]][self.Mine_n_corner_dict[i][1]][0] == -1:
-                    for j in self.Mine_n_check_dict[i]:
-                        temp_n_armed += 1 if self.Mine_array[self.Mine_n_corner_dict[i][0] + j[0]] \
-                                                 [self.Mine_n_corner_dict[i][1] + j[1]][0] == -1 else 0
-                    self.Mine_array[self.Mine_n_corner_dict[i][0]][self.Mine_n_corner_dict[i][1]] = [temp_n_armed, 0]
-                else:
-                    self.Mine_array[self.Mine_n_corner_dict[i][0]][self.Mine_n_corner_dict[i][1]][1] = 0
-
-            if self.Mine_array[0][1][1] == -1:
-                for i in self.Mine_n_horizontal_dict:
-                    for j in range(1, add(self.Field_columns, -1)):
-                        if not self.Mine_array[self.Mine_n_horizontal_dict[i]][j][0] == - 1:
-                            temp_n_armed = 0
-                            for k in self.Mine_n_check_dict[i]:
-                                temp_n_armed += 1 if self.Mine_array[self.Mine_n_horizontal_dict[i] + k[0]][
-                                                         j + k[1]][0] == - 1 else 0
-                            self.Mine_array[self.Mine_n_horizontal_dict[i]][j] = [temp_n_armed, 0]
-                        else:
-                            self.Mine_array[self.Mine_n_horizontal_dict[i]][j][1] = 0
-
-            if self.Mine_array[1][0][1] == -1:
-                for i in self.Mine_n_vertical_dict:
-                    for j in range(1, add(self.Field_rows, -1)):
-                        if not self.Mine_array[j][self.Mine_n_vertical_dict[i]][0] == -1:
-                            temp_n_armed = 0
-                            for k in self.Mine_n_check_dict[i]:
-                                temp_n_armed += 1 if self.Mine_array[j + k[0]][
-                                                         self.Mine_n_vertical_dict[i] + k[1]][0] == -1 else 0
-                            self.Mine_array[j][self.Mine_n_vertical_dict[i]] = [temp_n_armed, 0]
-                        else:
-                            self.Mine_array[j][self.Mine_n_vertical_dict[i]][1] = 0
-
-            if self.Mine_array[1][1][1] == -1:
-                for i in range(1, add(self.Field_rows, -1)):
-                    for j in range(1, add(self.Field_columns, -1)):
-                        if not self.Mine_array[i][j][0] == -1:
-                            temp_n_armed = 0
-                            for k in self.Mine_n_check_dict["M"]:
-                                temp_n_armed += 1 if self.Mine_array[i + k[0]][j + k[1]][0] == -1 else 0
-                            self.Mine_array[i][j] = [temp_n_armed, 0]
-                        else:
-                            self.Mine_array[i][j][1] = 0
-
-    def return_armed(self):  # TEST, returns all the .armed variables from self.Mine_array
-        temp_array = []
-        for i in range(0, self.Field_rows):
-            temp_temp_array = []
-            for j in range(0, self.Field_columns):
-                temp_temp_array.append(self.Mine_array[i][j][0])
-            temp_array.append(temp_temp_array)
-        return temp_array
-
-    def clear_array(self):  # clears the entire Mine_array
-        self.Mine_array = []
-
-    def clear_mines(self):  # sets back each value to -1
-        if not self.Mine_array:
-            return
-        for i in range(0, add(self.Field_rows, -1)):
-            for j in range(0, add(self.Field_rows, -1)):
-                self.Mine_array[i][j][1] = -1
-
-    def cli(self, prefix):  # runs a game of minefield using the command line interface
-        if not self.game_state == States.GAME_OFF:
-            return
-        try:
-            self.cli_initialize(prefix)
-            temp_cell = []
-            while True:
-                if self.game_state == States.GAME_FAIL:
-                    self.game_show_all_mines()
-                    self.cli_draw_field()
-                    print(prefix, " Game over! The cell at [", str(temp_cell[0]), ":", str(temp_cell[1]),
-                          "] was a mine!")
-                    break
-                if self.game_victory_check():
-                    self.cli_draw_field()
-                    print(prefix, " Congratulations! You've won!")
-                    break
-                self.cli_draw_field()
-                while True:
-                    temp_input = input(prefix + " Next cell, and action:" + self.player_prefix)
-                    if not temp_input.__len__() == 5:
-                        print(prefix, ' Wrong syntax, try again! (correct syntax: "column,row action")')
-                        break
-                    if not any((i == int(temp_input[0])) for i in range(1, add(self.Field_rows, 1))):
-                        print(prefix, ' Wrong syntax, try again! (correct syntax: "column,row action")')
-                        break
-                    if not any((i == int(temp_input[2])) for i in range(1, add(self.Field_columns, 1))):
-                        print(prefix, ' Wrong syntax, try again! (correct syntax: "column,row action")')
-                        break
-                    if not any((i == temp_input[4].upper()) for i in ["U", "F", "?"]):
-                        print(prefix, ' Wrong syntax, try again! (correct syntax: "column,row action")')
-                        break
-                    temp_action = temp_input[4]
-                    temp_cell = [int(temp_input[0]), int(temp_input[2])]
-
-                    try:
-                        self.game_set_cell_state(temp_cell, temp_action)
-                    except CellFlagged:
-                        print(prefix, " That cell is flagged!")
-                    except CellAlreadyClear:
-                        print(prefix, " That cell is already clear!")
-                    finally:
-                        break
-
-        except KeyboardInterrupt:
-            print("\nGoodbye!")
-
-    def cli_initialize(self, prefix):
-        if not self.game_state == States.GAME_OFF:
-            return
-        else:
-            self.game_state = States.GAME_RUNNING
-            temp_rows = 0
-            temp_columns = 0
-            temp_mines = 0
-            print(prefix, f"Welcome to:")
-            print(" ___ ___  ____  ____     ___  _____  ____    ___  _      ___   \n"
+    current_cell = [0, 0]
+    Cell_array = []
+    Field_rows = 0
+    Field_columns = 0
+    Field_mines = 0
+    Game_neighbour_check_tuple = (
+        [-1, -1],
+        [-1, 0],
+        [-1, 1],
+        [0, -1],
+        [0, 1],
+        [1, -1],
+        [1, 0],
+        [1, 1]
+    )
+    Game_state = 0
+    """
+    Game_state: tells the runtime what state is the game in:
+    0: off
+    1: running
+    2: victory
+    3: fail
+    """
+    help_text = "Welcome to MineField!\n" \
+                "Your goal is to uncover all cells, which are not mines!\n" \
+                "The Field looks like this:\n\n" \
+                "   1 2 3 4 5\n" \
+                " 1         1\n" \
+                " 2       2 F\n" \
+                " 3     1 F X\n" \
+                " 4     1 X X\n" \
+                " 5     X X X\n" \
+                "\n" \
+                "Syntax of the input: row column action\n" \
+                "For example: 3 4 U\n" \
+                "Valid actions:\n" \
+                "U: Uncover a cell\n" \
+                "F: Flag a cell, or remove a flag from a cell\n" \
+                "?: ?Flag a cell or remove a ?flag from a cell"
+    about_text = "Thank you for playing my game!\n" \
+                 "Programed by: Pluhár Tamás, 2020\n"
+    greet_text = ("\n"
+                  " ___ ___  ____  ____     ___  _____  ____    ___  _      ___   \n"
                   "|   |   ||    ||    \   /  _]|     ||    |  /  _]| |    |   \  \n"
                   "| _   _ | |  | |  _  | /  [_ |   __| |  |  /  [_ | |    |    \ \n"
                   "|  \_/  | |  | |  |  ||    _]|  |_   |  | |    _]| |___ |  D  |\n"
                   "|   |   | |  | |  |  ||   [_ |   _]  |  | |   [_ |     ||     |\n"
                   "|   |   | |  | |  |  ||     ||  |    |  | |     ||     ||     |\n"
                   "|___|___||____||__|__||_____||__|   |____||_____||_____||_____|\n"
-                  "                                                               ")
-            print(prefix,
-                  f"Gameplay: select one cell, and one of the three actions ('U': uncover, 'F': flag, '?': ?flag")
-            print(prefix, "Example: '3,3 u'")
-            while True:
-                try:
-                    temp_rows = int(input(prefix + f" Please enter the number of {Fore.RED}rows{Style.RESET_ALL} (min: "
-                                                   "2, max: 9): " + self.player_prefix))
-                except ValueError:
-                    continue
-                if 2 <= temp_rows <= 9:
-                    break
+                  "                                                               \n")
+    angry_text = "You do you"
+    cli_valid_actions = ("U", "F", "?")
+    gui_master = tk.Tk()
+    gui_master.geometry("1000x800")
+    gui_master.title("MineField")
+    gui_master.resizable(False, False)
 
-            while True:
-                try:
-                    temp_columns = int(
-                        input(prefix + f" Please enter the number of {Fore.RED}columns{Style.RESET_ALL} (min: 2, max: "
-                                       "9): " + self.player_prefix))
-                except ValueError:
-                    continue
-                if 2 <= temp_columns <= 9:
-                    break
-
-            while True:
-                try:
-                    temp_mines = int(input(prefix + f" Please enter the number of {Fore.RED}mines{Style.RESET_ALL} "
-                                                    f"(min 2, max: " + str(temp_rows * temp_columns) + "): "
-                                           + self.player_prefix))
-                except ValueError:
-                    continue
-                if 2 <= temp_mines <= (temp_rows * temp_columns):
-                    break
-
-            self.set_attributes(temp_rows, temp_columns, temp_mines)
-            self.generate_array()
-            self.generate_mines()
-            self.generate_neighbours()
-            self.update_empty_dict()
-            print(prefix, " Let the game begin!")
-
-    def cli_draw_field(self):
-        print(" ")
-        temp_draw = ""
-        temp_top_row = ""
-        temp_top_row += f"   {Fore.BLUE}"
-        for i in range(1, add(self.Field_columns, 1)):
-            temp_top_row += str(i) + " "
-        temp_top_row += f"{Style.RESET_ALL}\n"
-        temp_draw += temp_top_row
-        for i in range(0, self.Field_rows):
-            x = i
-            x += 1
-            temp_row = f"{Fore.BLUE} " + str(x) + f"{Style.RESET_ALL} "
-            for j in range(0, self.Field_columns):
-                if self.Mine_array[i][j][1] == 0:
-                    temp_row += "# "
-                elif self.Mine_array[i][j][1] == 1:
-                    if self.Mine_array[i][j][0] == -1:
-                        temp_row += f"{Fore.RED}M {Style.RESET_ALL}"
-                    elif self.Mine_array[i][j][0] == 0:
-                        temp_row += "  "
-                    else:
-                        temp_row += f"{Fore.GREEN}" + str(self.Mine_array[i][j][0]) + f"{Style.RESET_ALL} "
-                elif self.Mine_array[i][j][1] == 2:
-                    temp_row += f"{Fore.RED}F {Style.RESET_ALL}"
-                elif self.Mine_array[i][j][1] == 3:
-                    temp_row += f"{Fore.YELLOW}? {Style.RESET_ALL}"
-            temp_draw += temp_row + "\n"
-        print(temp_draw)
-
-    def game_set_cell_state(self, cell, state):
-        cell_row = cell[1] - 1
-        cell_column = cell[0] - 1
-        state = state.upper()
-        if not 0 <= cell_row < self.Field_rows:
+    def set_attributes(self, rows=0, columns=0, mines=0):
+        """
+        Sets one MineFields attributes,
+        :raises ValueError if the parameters are negative, or there are more mines than cells
+        """
+        if (rows or columns or mines) < 0:
             raise ValueError
-        if not 0 <= cell_column < self.Field_columns:
+        if mines > (rows * columns):
             raise ValueError
-        if not any((i == state) for i in ["U", "F", "?"]):
-            raise ValueError
+        if not rows == 0:
+            self.Field_rows = rows
+        if not columns == 0:
+            self.Field_columns = columns
+        if not mines == 0:
+            self.Field_mines = mines
 
-        if state == "U":
-            if self.Mine_array[cell_row][cell_column][0] == -1:
-                self.game_state = States.GAME_FAIL
-                return
-            elif self.Mine_array[cell_row][cell_column][1] == 0:
-                self.Mine_array[cell_row][cell_column][1] = 1
-                if self.Mine_array[cell_row][cell_column][0] == 0:
-                    self.game_uncover_empty([cell_row, cell_column])
-                return
-            elif self.Mine_array[cell_row][cell_column][1] == 1:
-                raise CellAlreadyClear
-            else:
-                raise CellFlagged
+    def game_generate_cell_array(self):
+        """Generates the field by creating a two dimensional list, returns if self.rows or self.columns are 0"""
+        if (self.Field_columns or self.Field_rows) == 0:
+            return
+        for i in range(self.Field_rows):
+            temp_list = []
+            for j in range(self.Field_columns):
+                temp_list.append([0, 0])
+            self.Cell_array.append(temp_list)
 
-        if state == "F":
-            if self.Mine_array[cell_row][cell_column][1] == 1:
-                raise CellAlreadyClear
-            elif self.Mine_array[cell_row][cell_column][1] == 2:
-                self.Mine_array[cell_row][cell_column][1] = 0
-                return
-            else:
-                self.Mine_array[cell_row][cell_column][1] = 2
+    def game_generate_mines(self, *cells):
+        """
+        generates mines in the Cell_array, by setting the first variable to -1
+        returns if there are more mines than cells
+        can set specific cells as mines, with cells
+        :type cells: list
+        """
+        rows = self.Field_rows
+        columns = self.Field_columns
+        mines = self.Field_mines
+        if cells:
+            for i in cells:
+                try:
+                    self.Cell_array[i[0]][i[1]][0] = -1
+                except:
+                    continue
+        elif mines > rows * columns:
+            return
+        else:
+            i = 0
+            while True:
+                if i == mines:
+                    break
+                current_cell = [randrange(0, rows), randrange(0, columns)]
+                if not self.Cell_array[current_cell[0]][current_cell[1]][0] == -1:
+                    self.Cell_array[current_cell[0]][current_cell[1]][0] = -1
+                    i += 1
 
-        if state == "?":
-            if self.Mine_array[cell_row][cell_column][1] == 1:
-                raise CellAlreadyClear
-            elif self.Mine_array[cell_row][cell_column][1] == 3:
-                self.Mine_array[cell_row][cell_column][1] = 0
-                return
-            else:
-                self.Mine_array[cell_row][cell_column][1] = 3
+    def game_generate_neighbours(self):
+        """
+        Goes through each cell, and counts how many of it's neighbouring cells are mines, if itself is not a mine
+        Stores the counted value
+        """
+        rows = self.Field_rows
+        columns = self.Field_columns
+        check = self.Game_neighbour_check_tuple
+        for i in range(rows):
+            for j in range(columns):
+                if self.Cell_array[i][j][0] == -1:
+                    continue
+                temp_n_mines = 0
+                for k in check:
+                    if 0 <= i + k[0] < rows and 0 <= j + k[1] < columns:
+                        temp_n_mines += 1 if self.Cell_array[i + k[0]][j + k[1]][0] == -1 else 0
+                self.Cell_array[i][j][0] = temp_n_mines
 
     def game_victory_check(self):
-        for i in self.Mine_array:
-            for j in i:
-                if not j[0] == -1:
-                    if not j[1] == 1:
-                        return False
+        """sets self.Game_state to 2 (victory) if all non-mine cells are uncovered"""
+        for i in range(self.Field_rows):
+            for j in range(self.Field_columns):
+                if not self.Cell_array[i][j][0] == -1:
+                    if self.Cell_array[i][j][1] == 0:
+                        return
+        self.Game_state = 2
+
+    def game_set_cell_state(self, cell, new_state):
+        """
+        Sets a given cells state, according to the argument, new_state
+        Sets self.Game_state to 3 (fail) if a mine is uncovered
+        :raises ValueError if new_state is not a valid action
+        :raises CellFlagged when trying to uncover a flagged cell
+        :raises CellClear when trying to uncover or flag an already clear cell
+        """
+        current_cell = self.Cell_array[cell[0]][cell[1]]
+        check = self.Game_neighbour_check_tuple
+        valid_actions = ["U", "F", "?"]
+        if new_state not in valid_actions:
+            raise ValueError
+
+        if new_state == "U":
+            if current_cell[0] == -1:
+                self.Game_state = 3
+                return
+            if current_cell[1] == (2 or 3):
+                raise CellFlagged
+            if current_cell[1] == 1:
+                raise CellClear
+            self.Cell_array[cell[0]][cell[1]][1] = 1
+            if current_cell[0] == 0:
+                for i in check:
+                    if 0 <= cell[0] + i[0] < self.Field_rows and 0 <= cell[1] + i[1] < self.Field_columns:
+                        try:
+                            self.game_set_cell_state([cell[0] + i[0], cell[1] + i[1]], "U")
+                        except (CellClear, CellFlagged):
+                            continue
+            return
+        if current_cell[1] == 1:
+            raise CellClear
+        if new_state == "F":
+            if current_cell[1] in (0, 3):
+                self.Cell_array[cell[0]][cell[1]][1] = 2
+                return
+            if current_cell[1] == 2:
+                self.Cell_array[cell[0]][cell[1]][1] = 0
+
+        if new_state == "?":
+            if current_cell[1] in (0, 2):
+                self.Cell_array[cell[0]][cell[1]][1] = 3
+                return
+            if current_cell[1] == 3:
+                self.Cell_array[cell[0]][cell[1]][1] = 0
+
+    def game_uncover_all_mines(self):
+        """Used in a case of loss, to show all the mines, the wrong, and the correct flags"""
+        for i in range(self.Field_rows):
+            for j in range(self.Field_columns):
+                current_cell = self.Cell_array[i][j]
+                if current_cell[0] == -1 and current_cell[1] == 0:
+                    self.Cell_array[i][j][1] = 1
+                elif current_cell[0] == -1 and current_cell[1] == 2:
+                    self.Cell_array[i][j][1] = 4
+                elif (not current_cell[0] == -1) and current_cell[1] == 2:
+                    self.Cell_array[i][j][1] = 5
+
+    def runtime_cli(self):
+        """
+        Starts the game, using the command line interface
+        """
+        try:
+            if not self.Game_state == 0:
+                return
+            self.Game_state = 1
+            actions_dict = {
+                "PLAY": self.cli_play,
+                "HELP": self.cli_help,
+                "ABOUT": self.cli_about,
+                "NO": self.cli_no,
+                "NEM": self.cli_no
+            }
+            print(self.greet_text)
+            print('Type "Play" to play!')
+            while not 0 == self.Game_state:
+                user_in = input()
+                if not user_in.strip().upper() in actions_dict:
+                    print("Invalid action!")
+                    continue
+                actions_dict[user_in.strip().upper()]()
+        except (KeyboardInterrupt, EOFError):
+            pass
+
+    def runtime_cli_draw_field(self):
+        """Prints out the current state of the minefield"""
+        temp_draw_field = ""
+        temp_row_beginning = "  " if self.Field_rows < 9 else "    "
+        temp_top_row = temp_row_beginning
+        cells = self.Cell_array
+        if self.Field_columns < 9:
+            for i in range(1, self.Field_columns + 1):
+                temp_top_row += str(i) + " "
         else:
-            return True
+            for i in range(1, self.Field_columns + 1):
+                if i < 10:
+                    temp_top_row += "  "
+                else:
+                    temp_top_row += str(i // 10) + " "
+            temp_top_row += "\n" + temp_row_beginning
+            counter = 0
+            for i in range(1, self.Field_columns + 1):
+                if i % 10 == 0:
+                    counter += 10
+                temp_top_row += str(i - counter) + " "
+        temp_top_row += "\n"
+        temp_draw_field += temp_top_row
+        for i in range(0, self.Field_rows):
+            if self.Field_rows < 9:
+                temp_column = " " + str(i + 1) + " "
+            else:
+                if i < 9:
+                    temp_column = "  " + str(i + 1) + " "
+                else:
+                    temp_column = " " + str(i + 1) + " "
+            for j in range(0, self.Field_columns):
+                if cells[i][j][1] == 0:
+                    temp_column += "X "
+                elif cells[i][j][1] == 2:
+                    temp_column += "F "
+                elif cells[i][j][1] == 3:
+                    temp_column += "? "
+                elif cells[i][j][1] == 4:
+                    temp_column += "C "
+                elif cells[i][j][1] == 5:
+                    temp_column += "W "
+                elif cells[i][j][0] == -1:
+                    temp_column += "M "
+                elif cells[i][j][0] == 0:
+                    temp_column += "  "
+                else:
+                    temp_column += str(cells[i][j][0]) + " "
+            temp_column += "\n"
+            temp_draw_field += temp_column
+        print(temp_draw_field)
 
-    def game_show_all_mines(self):
-        for i in self.Mine_array:
-            for j in i:
-                if j[0] == -1:
-                    j[1] = 1
+    def cli_help(self):
+        """Prints out the help text"""
+        print(self.help_text)
 
-    def update_empty_dict(self):
-        self.Mine_empty_dict = {
-            "corner":
-                {(0, 0): "NW",
-                 (0, self.Field_columns - 1): "NE",
-                 (self.Field_rows - 1, 0): "SW",
-                 (self.Field_rows - 1, self.Field_columns - 1): "SE", },
-            "vertical":
-                {0: "N",
-                 self.Field_rows - 1: "S"},
-            "horizontal":
-                {0: "W",
-                 self.Field_columns - 1: "E"}
-        }
+    def cli_about(self):
+        """Prints out the about text"""
+        print(self.about_text)
 
-    def game_uncover_empty(self, cell):
-        empty_dict = self.Mine_empty_dict
-        check_dict = self.Mine_n_check_dict
-        for i in empty_dict["corner"]:
-            if cell == list(i):
-                for j in check_dict[empty_dict["corner"][i]]:
-                    self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][1] = 1
-                    if self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][0] == 0:
-                        self.game_uncover_empty([cell[0] + j[0], cell[1] + j[1]])
-                return
-        for i in empty_dict["vertical"]:
-            if cell[0] == i:
-                for j in check_dict[empty_dict["vertical"][i]]:
-                    self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][1] = 1
-                    if self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][0] == 0:
-                        self.game_uncover_empty([cell[0] + j[0], cell[1] + j[1]])
-                return
-        for i in empty_dict["horizontal"]:
-            if cell[1] == i:
-                for j in check_dict[empty_dict["horizontal"][i]]:
-                    self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][1] = 1
-                    if self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][0] == 0:
-                        self.game_uncover_empty([cell[0] + j[0], cell[1] + j[1]])
-                return
-        for j in check_dict["M"]:
-            self.Mine_array[cell[0] + j[0]][cell[1] + j[1]][1] = 1
+    def cli_no(self):
+        """Exist the program... lol"""
+        print(self.angry_text)
+        sys.exit()
 
+    def cli_play(self):
+        invalid = "Invalid value!"
+        while True:
+            rows = int(input("Please set the number of rows (min 1, max 20)\n").strip())
+            if 1 <= rows <= 20:
+                break
+            else:
+                print(invalid)
+        while True:
+            columns = int(input("Please set the number of columns (min 1, max 20)\n").strip())
+            if 1 <= columns <= 20:
+                break
+            else:
+                print(invalid)
+        while True:
+            mines = int(input("Please set the number of mines (min 1, max " + str(rows * columns) + ")\n").strip())
+            if 1 <= mines <= (rows * columns):
+                break
+            else:
+                print(invalid)
+        self.set_attributes(rows, columns, mines)
+        self.game_generate_cell_array()
+        self.game_generate_mines()
+        self.game_generate_neighbours()
+        while True:
+            self.game_victory_check()
+            if self.Game_state == 3:
+                self.game_uncover_all_mines()
+            self.runtime_cli_draw_field()
+            if self.Game_state == 2:
+                print("Congratulations, You've won!")
+                self.Game_state = 0
+                break
+            if self.Game_state == 3:
+                print("You've lost!")
+                self.Game_state = 0
+                break
+            while True:
+                temp_next_action = input("Next cell, and action: \n").strip().upper()
+                temp_row = ""
+                temp_column = ""
+                temp_action = ""
+                progress = 0
+                if temp_next_action.strip().upper() == "HELP":
+                    self.cli_help()
+                    spam = input("Press enter to continue")
+                    continue
+                for i in temp_next_action:
+                    if progress == 0 and i == " ":
+                        progress = 1
+                        continue
+                    if progress == 0:
+                        temp_column += i
+                    if progress == 1:
+                        temp_row += i
+                    if progress == 1 and i == " ":
+                        progress = 2
+                        continue
+                    if progress == 2:
+                        temp_action += i
 
-# ----------T-E-S-T----------
+                try:
+                    temp_row = int(temp_row) - 1
+                except:
+                    print("Invalid row!")
+                    continue
 
+                try:
+                    temp_column = int(temp_column) - 1
+                except:
+                    print("Invalid column!")
+                    continue
 
-lol = MineField()
-lol.cli(lol.sys_prefix)
+                if temp_action not in self.cli_valid_actions:
+                    print("Invalid action!")
+                    continue
+                break
+            try:
+                self.game_set_cell_state([temp_row, temp_column], temp_action)
+            except CellClear:
+                print("That cell is already clear!")
+            except CellFlagged:
+                print("That cell is already flagged!")
+
+    def runtime_gui(self):
+        """
+        runs the game using a GUI
+        returns if another instance of the game is running
+        """
+        if not self.Game_state == 0:
+            return
+        test_frame = tk.Frame(self.gui_master, bg="red")
+        test_frame.pack(fill="both", expand=1)
+        test_button = tk.Button(test_frame, text="play", command=self.gui_play)
+        test_button.grid()
+        self.gui_master.mainloop()
+
+    def gui_play(self):
+        for child in self.gui_master.winfo_children():
+            child.destroy()
+        self.set_attributes(5, 5, 5)
+        self.game_generate_cell_array()
+        self.game_generate_mines()
+        self.game_generate_neighbours()
+        master_frame = tk.Frame(self.gui_master,)
+        master_frame.pack(fill="both", expand=1)
+        field_frame = tk.Frame(master_frame, width=600, height=600, bg="purple")
+        field_frame.place(x=200, y=100)
+        button_size = int(600 / max(self.Field_rows, self.Field_columns))
+        for i in range(self.Field_rows):
+            for j in range(self.Field_columns):
+                cell = tk.Button(field_frame, width=10, height=5)
+                cell.grid(row=i, column=j)
