@@ -1,5 +1,6 @@
 import sys
 from random import randrange
+import tkinter as tk
 
 
 class CellClear(Exception):
@@ -63,6 +64,10 @@ class MineField:
                   "                                                               \n")
     angry_text = "You do you"
     cli_valid_actions = ("U", "F", "?")
+    gui_master = tk.Tk()
+    gui_master.geometry("1000x800")
+    gui_master.title("MineField")
+    gui_master.resizable(False, False)
 
     def set_attributes(self, rows=0, columns=0, mines=0):
         """
@@ -338,10 +343,10 @@ class MineField:
                 temp_column = ""
                 temp_action = ""
                 progress = 0
-                if temp_action.strip().upper() == "HELP":
+                if temp_next_action.strip().upper() == "HELP":
                     self.cli_help()
                     spam = input("Press enter to continue")
-                    break
+                    continue
                 for i in temp_next_action:
                     if progress == 0 and i == " ":
                         progress = 1
@@ -380,19 +385,31 @@ class MineField:
                 print("That cell is already flagged!")
 
     def runtime_gui(self):
-        pass
+        """
+        runs the game using a GUI
+        returns if another instance of the game is running
+        """
+        if not self.Game_state == 0:
+            return
+        test_frame = tk.Frame(self.gui_master, bg="red")
+        test_frame.pack(fill="both", expand=1)
+        test_button = tk.Button(test_frame, text="play", command=self.gui_play)
+        test_button.grid()
+        self.gui_master.mainloop()
 
-# ----------T-E-S-T----------
-spam = MineField()
-"""
-spam.set_attributes(4, 4)
-spam.game_generate_cell_array()
-spam.game_generate_mines([0, 0])
-spam.game_generate_neighbours()
-spam.game_set_cell_state([0, 0], "F")
-spam.game_set_cell_state([1, 2], "F")
-spam.game_set_cell_state([3, 3], "U")
-spam.game_uncover_all_mines()
-spam.runtime_cli_draw_field()
-"""
-spam.runtime_cli()
+    def gui_play(self):
+        for child in self.gui_master.winfo_children():
+            child.destroy()
+        self.set_attributes(5, 5, 5)
+        self.game_generate_cell_array()
+        self.game_generate_mines()
+        self.game_generate_neighbours()
+        master_frame = tk.Frame(self.gui_master,)
+        master_frame.pack(fill="both", expand=1)
+        field_frame = tk.Frame(master_frame, width=600, height=600, bg="purple")
+        field_frame.place(x=200, y=100)
+        button_size = int(600 / max(self.Field_rows, self.Field_columns))
+        for i in range(self.Field_rows):
+            for j in range(self.Field_columns):
+                cell = tk.Button(field_frame, width=10, height=5)
+                cell.grid(row=i, column=j)
